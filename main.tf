@@ -49,8 +49,38 @@ resource "oci_core_subnet" "openvpn" {
   compartment_id              = data.sops_file.secret.data["tenancy"]
   display_name                = "OpenVPN server subnet"
   dns_label                   = "dev"
+  route_table_id              = oci_core_route_table.OpenVPN-Server.id
 }
 
+resource "oci_core_route_table" "OpenVPN-Server" {
+
+    compartment_id = data.sops_file.secret.data["tenancy"]
+    vcn_id = oci_core_vcn.internal.id
+
+
+    display_name = "OpenVPN Route Table"
+    freeform_tags = {"Access"= "OpenVPN"}
+    route_rules {
+
+        network_entity_id = oci_core_internet_gateway.OpenVPN_internet_gateway.id
+
+        description = "OpenVPN route rule"
+        destination = "0.0.0.0/0"
+        destination_type = "CIDR_BLOCK"
+    }
+}
+
+
+resource "oci_core_internet_gateway" "OpenVPN_internet_gateway" {
+
+    compartment_id = data.sops_file.secret.data["tenancy"]
+    vcn_id = oci_core_vcn.internal.id
+
+
+    enabled = true
+    display_name = "OpenVPN IG"
+    freeform_tags = {"Access"= "OpenVPN"}
+}
 
 
 resource "oci_core_instance" "OpenVPN" {
@@ -75,81 +105,17 @@ resource "oci_core_instance" "OpenVPN" {
     ssh_authorized_keys = "${file(var.ssh_key_public)}"
   }
 
-#   connection {
-#       host        = "${self.public_ip}"
-#       type        = "ssh"
-#       user        = "opc"
-#       private_key = "${file("~/ya_rsa")}"
-#     }
-#   provisioner "remote-exec" {
-#     inline = ["sudo yum check-update", "sudo yum install python3 -y", "echo Done!"]
-#    }
+  connection {
+      host        = "${self.public_ip}"
+      type        = "ssh"
+      user        = "opc"
+      private_key = "${file("~/ya_rsa")}"
+    }
+  provisioner "remote-exec" {
+    inline = ["sudo yum check-update", "sudo yum install python3 -y", "echo Done!"]
+   }
 }
 
-
-# resource "yandex_vpc_network" "openvpn-net" {
-#     name = "yandex-openvpn-terraform"
-# }
-
-# resource "yandex_vpc_subnet" "ya-openvpn-subnet" {
-#   name = "ya-subnet-1"
-#   v4_cidr_blocks = ["10.2.0.0/16"]
-#   zone       = "ru-central1-a"
-#   network_id = "${yandex_vpc_network.openvpn-net.id}"
-# }
-
-# resource "yandex_dns_zone" "openvpn-test" {
-#   name    = "tls-cert-zone"
-#   zone    = "rand-tls-test.ga."
-#   public  = true
-# }
-
-# resource "yandex_dns_recordset" "rs1" {
-#   zone_id = "${yandex_dns_zone.openvpn-test.id}"
-#   name    = "rand-tls-test.ga."
-#   type    = "A"
-#   ttl     = 200
-#   data    = ["${yandex_compute_instance.yandex-openvpn.network_interface.0.nat_ip_address}"]
-# }
-
-# resource "yandex_compute_instance" "yandex-openvpn" {
-#   name        = "openvpn-server"
-#   platform_id = "standard-v1"
-#   zone        = "ru-central1-a"
-
-#   resources {
-#     cores  = 2
-#     memory = 2
-#     core_fraction = 20
-#   }
-
-#   boot_disk {
-#     initialize_params {
-#       image_id = "fd878e3sgmosqaquvef5"
-#       size = 20
-#       type = "network-hdd"
-#     }
-#   }
-
-#   network_interface {
-#     subnet_id = "${yandex_vpc_subnet.ya-openvpn-subnet.id}"
-#     nat = true
-#   }
-
-#   metadata = {
-#     ssh-keys = "cloud-user:${file("~/ya_rsa.pub")}"
-#   }
-
-#   connection {
-#       host        = "${self.network_interface.0.nat_ip_address}"
-#       type        = "ssh"
-#       user        = "cloud-user"
-#       private_key = "${file("~/ya_rsa")}"
-#     }
-#   provisioner "remote-exec" {
-#     inline = ["sudo yum check-update", "sudo yum install python3 -y", "echo Done!"]
-#    }
-# }
 
 # resource "null_resource" "ansible_provision" {
 #    provisioner "local-exec" {
@@ -157,7 +123,7 @@ resource "oci_core_instance" "OpenVPN" {
 #    }
 # }
 
-output "Private-ip-address" {
+output "private-ip-address" {
   value = oci_core_instance.OpenVPN.private_ip
 }
 
