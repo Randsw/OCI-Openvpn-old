@@ -3,3 +3,4 @@ secret.yaml
 .terraform.lock.hcl
 .git
 terraform.tfstate*
+secret_dep.yaml
