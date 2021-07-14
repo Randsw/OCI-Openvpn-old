@@ -4,3 +4,7 @@ openvpn_custom_dns:
   - 8.8.8.8
   - 1.1.1.1
 openvpn_client_register_dns: false
+openvpn_client_to_client: true
+openvpn_redirect_gateway: false
+openvpn_push:
+  - route {{ openvpn_server_network }} 255.255.255.0

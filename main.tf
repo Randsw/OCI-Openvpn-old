@@ -124,6 +124,27 @@ resource "oci_core_security_list" "OpenVPN_security_list" {
     }
 }
 
+resource "oci_dns_zone" "openvpn_zone" {
+    compartment_id = data.oci_identity_compartments.openvpn_compartments.compartments[0].id
+    name = "rand-vpn.tk"
+    zone_type = "PRIMARY"
+    freeform_tags = {"App"= "OpenVPN"}
+}
+
+resource "oci_dns_rrset" "openvpn-server" {
+    domain = "rand-vpn.tk"
+    rtype = "A"
+    zone_name_or_id = oci_dns_zone.openvpn_zone.id
+
+    compartment_id = data.oci_identity_compartments.openvpn_compartments.compartments[0].id
+    items {
+        domain = oci_dns_zone.openvpn_zone.name
+        rdata = oci_core_instance.OpenVPN.public_ip
+        rtype = "A"
+        ttl = 3600
+    }
+}
+
 resource "oci_core_instance" "OpenVPN" {
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[2].name
   compartment_id      = data.oci_identity_compartments.openvpn_compartments.compartments[0].id

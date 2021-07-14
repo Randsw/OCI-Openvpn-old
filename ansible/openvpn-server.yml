@@ -1,0 +1,33 @@
+---
+- hosts: all
+  gather_facts: true
+  become: yes
+
+  pre_tasks:
+
+    - name: Install firewalld
+      yum: 
+        name: "{{ item }}" 
+        state: latest
+      loop:
+        - firewalld
+
+    - name: Enable firewalld
+      service: 
+        name: firewalld 
+        state: started 
+        enabled: yes
+
+    - name: Enable OpenVPN Port (firewalld)
+      firewalld:
+        port: "{{ openvpn_port }}/{{ openvpn_proto }}"
+        zone: "{{ firewalld_default_interface_zone }}"
+        permanent: true
+        immediate: true
+        state: enabled
+
+  roles:
+    - role: kyl191.openvpn
+      clients:
+        - rand-pc
+        - rand-netbook
