@@ -1,4 +1,14 @@
 terraform {
+   backend "s3" {
+    endpoint                    = "https://frd8bsyrgar7.compat.objectstorage.eu-frankfurt-1.oraclecloud.com"
+    skip_metadata_api_check     = true
+    skip_region_validation      = true
+    force_path_style            = true
+    skip_credentials_validation = true
+    bucket                      = "tf-state"
+    key                         = "openvpn/terraform.tfstate"
+    region                      = "eu-frankfurt-1"
+  }
   required_providers {
     oci = {
         source  = "hashicorp/oci"
@@ -14,6 +24,7 @@ terraform {
 data "sops_file" "secret" {
   source_file = "secret_dep.sops.yaml"
 }
+
 
 provider "oci" {
   region           = data.sops_file.secret.data["region"]
@@ -40,109 +51,6 @@ data "oci_identity_compartments" "openvpn_compartments" {
     access_level = "ACCESSIBLE"
     name = "OpenVPN"
     state = "ACTIVE"
-}
-
-resource "oci_core_vcn" "internal" {
-  dns_label      = "internal"
-  cidr_block     = "172.16.0.0/20"
-  compartment_id = data.oci_identity_compartments.openvpn_compartments.compartments[0].id
-  display_name   = "OpenVPN VCN"
-  freeform_tags = {"App"= "OpenVPN"}
-}
-
-resource "oci_core_subnet" "openvpn" {
-  vcn_id                      = oci_core_vcn.internal.id
-  cidr_block                  = "172.16.0.0/24"
-  compartment_id              = data.oci_identity_compartments.openvpn_compartments.compartments[0].id
-  display_name                = "OpenVPN server subnet"
-  dns_label                   = "openvpn"
-  route_table_id              = oci_core_route_table.OpenVPN-Server.id
-  freeform_tags               = {"App"= "OpenVPN"}
-  dhcp_options_id             = oci_core_vcn.internal.default_dhcp_options_id
-  security_list_ids           = [oci_core_security_list.OpenVPN_security_list.id]
-}
-
-resource "oci_core_route_table" "OpenVPN-Server" {
-
-    compartment_id = data.oci_identity_compartments.openvpn_compartments.compartments[0].id
-    vcn_id = oci_core_vcn.internal.id
-
-
-    display_name = "OpenVPN Route Table"
-    freeform_tags = {"App"= "OpenVPN"}
-    route_rules {
-        network_entity_id = oci_core_internet_gateway.OpenVPN_internet_gateway.id
-        description = "OpenVPN route rule"
-        destination = "0.0.0.0/0"
-        destination_type = "CIDR_BLOCK"
-    }
-}
-
-resource "oci_core_internet_gateway" "OpenVPN_internet_gateway" {
-    compartment_id = data.oci_identity_compartments.openvpn_compartments.compartments[0].id
-    vcn_id = oci_core_vcn.internal.id
-    enabled = true
-    display_name = "OpenVPN IG"
-    freeform_tags = {"App"= "OpenVPN"}
-}
-
-resource "oci_core_security_list" "OpenVPN_security_list" {
-    compartment_id = data.oci_identity_compartments.openvpn_compartments.compartments[0].id
-    vcn_id = oci_core_vcn.internal.id
-    display_name = "OpenVPN Security List"
-    freeform_tags = {"App"= "OpenVPN"}
-    egress_security_rules {
-        protocol    = "6"
-        destination = "0.0.0.0/0"
-    }
-    ingress_security_rules {
-        protocol = "6"
-        source   = "0.0.0.0/0"
-        description = "Allow ssh"
-        tcp_options {
-            max = "22"
-            min = "22"
-        }
-    }
-    ingress_security_rules {
-        protocol = 17
-        source = "0.0.0.0/0"
-        description = "OpenVPN UDP rule"
-        udp_options {
-            max = 1194
-            min = 1194
-        }
-    }
-    ingress_security_rules {
-        protocol = 6
-        source = "0.0.0.0/0"
-        description = "OpenVPN TCP rule"
-        tcp_options {
-            max = 443
-            min = 443
-        }
-    }
-}
-
-resource "oci_dns_zone" "openvpn_zone" {
-    compartment_id = data.oci_identity_compartments.openvpn_compartments.compartments[0].id
-    name = "rand-vpn.tk"
-    zone_type = "PRIMARY"
-    freeform_tags = {"App"= "OpenVPN"}
-}
-
-resource "oci_dns_rrset" "openvpn-server" {
-    domain = "rand-vpn.tk"
-    rtype = "A"
-    zone_name_or_id = oci_dns_zone.openvpn_zone.id
-
-    compartment_id = data.oci_identity_compartments.openvpn_compartments.compartments[0].id
-    items {
-        domain = oci_dns_zone.openvpn_zone.name
-        rdata = oci_core_instance.OpenVPN.public_ip
-        rtype = "A"
-        ttl = 3600
-    }
 }
 
 resource "oci_core_instance" "OpenVPN" {
@@ -184,20 +92,3 @@ resource "null_resource" "ansible_provision" {
      command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u opc -i '${oci_core_instance.OpenVPN.public_ip},' --private-key ${var.ssh_key_private} ansible/openvpn-server.yml"
    }
 }
-
-output "comparement" {
-  value = data.oci_identity_compartments.openvpn_compartments.compartments[0].id
-}
-
-output "private-ip-address" {
-  value = oci_core_instance.OpenVPN.private_ip
-}
-
-output "public-ip-address" {
-  value = oci_core_instance.OpenVPN.public_ip
-}
-
-output "all-availability-domains-in-your-tenancy" {
-  value = data.oci_identity_availability_domains.ads.availability_domains
-}
-
