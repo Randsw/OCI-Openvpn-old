@@ -4,30 +4,50 @@
   become: yes
 
   pre_tasks:
+  
+    # - name: Add iptables rule
+    #   iptables:
+    #     chain: INPUT
+    #     protocol: udp
+    #     destination_port: 1194
+    #     jump: ACCEPT
+    #     rule_num: 4
 
-    - name: Install firewalld
-      yum: 
-        name: "{{ item }}" 
-        state: latest
-      loop:
-        - firewalld
+    # - name: Iptables flush filter
+    #   ansible.builtin.iptables:
+    #     chain: "{{ item }}"
+    #     flush: yes
+    #   loop:  [ 'INPUT', 'FORWARD', 'OUTPUT' ]
+  
+  post_tasks:
 
-    - name: Enable firewalld
-      service: 
-        name: firewalld 
-        state: started 
-        enabled: yes
+    - name: Add iptables rule
+      iptables:
+        chain: INPUT
+        protocol: udp
+        destination_port: 1194
+        jump: ACCEPT
+        action: insert
+        rule_num: 4
+    
+    # - name: Delete Oracle firewall FORWARD rules
+    #   command: iptables -F FORWARD
 
-    - name: Enable OpenVPN Port (firewalld)
-      firewalld:
-        port: "{{ openvpn_port }}/{{ openvpn_proto }}"
-        zone: "{{ firewalld_default_interface_zone }}"
-        permanent: true
-        immediate: true
-        state: enabled
+    # - name: Delete Oracle firewall INPUT rule
+    #   command: iptables -t filter -D INPUT 5
+
+    - name: Save iptables
+      shell: iptables-save > /etc/sysconfig/iptables
 
   roles:
     - role: kyl191.openvpn
       clients:
         - rand-pc
         - rand-netbook
+        # - rand-phone
+        # - rand-work
+        # - client1
+        # - client2
+        # - client3
+        # - client4
+        # - client5

@@ -25,13 +25,4 @@ resource "oci_core_security_list" "OpenVPN_security_list" {
             min = 1194
         }
     }
-    ingress_security_rules {
-        protocol = 6
-        source = "0.0.0.0/0"
-        description = "OpenVPN TCP rule"
-        tcp_options {
-            max = 443
-            min = 443
-        }
-    }
 }
