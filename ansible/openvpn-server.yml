@@ -3,47 +3,30 @@
   gather_facts: true
   become: yes
 
-  pre_tasks:
-  
-    # - name: Add iptables rule
-    #   iptables:
-    #     chain: INPUT
-    #     protocol: udp
-    #     destination_port: 1194
-    #     jump: ACCEPT
-    #     rule_num: 4
-
-    # - name: Iptables flush filter
-    #   ansible.builtin.iptables:
-    #     chain: "{{ item }}"
-    #     flush: yes
-    #   loop:  [ 'INPUT', 'FORWARD', 'OUTPUT' ]
-  
   post_tasks:
 
-    - name: Add iptables rule
-      iptables:
-        chain: INPUT
-        protocol: udp
-        destination_port: 1194
-        jump: ACCEPT
-        action: insert
-        rule_num: 4
-    
-    # - name: Delete Oracle firewall FORWARD rules
-    #   command: iptables -F FORWARD
+    - name: Delete default reject rule
+      lineinfile: 
+        dest: /etc/firewalld/direct.xml 
+        state: absent 
+        regexp: "{{ item }}"
+      loop: 
+       - ".*-A INPUT -j REJECT --reject-with icmp-host-prohibited.*"
+       - ".*-A FORWARD -j REJECT --reject-with icmp-host-prohibited.*"
+      register: default_rule_clean
 
-    # - name: Delete Oracle firewall INPUT rule
-    #   command: iptables -t filter -D INPUT 5
 
-    - name: Save iptables
-      shell: iptables-save > /etc/sysconfig/iptables
+    - name: Restart firewalld
+      service:
+        name: firewalld
+        state: restarted
+      when: default_rule_clean.changed
 
   roles:
     - role: kyl191.openvpn
       clients:
         - rand-pc
-        - rand-netbook
+        #- rand-netbook
         # - rand-phone
         # - rand-work
         # - client1
