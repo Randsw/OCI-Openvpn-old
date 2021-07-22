@@ -38,14 +38,6 @@ data "oci_identity_availability_domains" "ads" {
   compartment_id = data.oci_identity_compartments.openvpn_compartments.compartments[0].id
 }
 
-# resource "oci_identity_compartment" "openvpn-compartment" {
-#     # Required
-#     compartment_id = data.sops_file.secret.data["tenancy"]
-#     description = "Compartment for Terraform resources."
-#     name = "OpenVPN-compartment"
-#     freeform_tags = {"App"= "OpenVPN"}
-# }
-
 data "oci_identity_compartments" "openvpn_compartments" {
     compartment_id = data.sops_file.secret.data["tenancy"]
     access_level = "ACCESSIBLE"

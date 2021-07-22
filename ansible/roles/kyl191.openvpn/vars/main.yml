@@ -11,4 +11,4 @@ openvpn_redirect_gateway: false
 openvpn_push: []
 #  - route {{ openvpn_server_network }} 255.255.255.0
 
-openvpn_server_hostname: "rand-openvpn.tk"
+openvpn_server_hostname: "rand-vpn.tk"
